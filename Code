@@ -1,0 +1,1150 @@
+# Libraries to help with reading and manipulating data
+import numpy as np
+import pandas as pd
+
+# Libraries to help with data visualization
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set_theme(style='darkgrid')
+
+# Removes the limit for the number of displayed columns
+pd.set_option("display.max_columns", None)
+# Sets the limit for the number of displayed rows
+pd.set_option("display.max_rows", 200)
+
+# to scale the data using z-score
+from sklearn.preprocessing import StandardScaler
+
+# to compute distances
+from scipy.spatial.distance import cdist, pdist
+
+# to perform k-means clustering and compute silhouette scores
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+# to visualize the elbow curve and silhouette scores
+from yellowbrick.cluster import KElbowVisualizer, SilhouetteVisualizer
+
+# to perform hierarchical clustering, compute cophenetic correlation, and create dendrograms
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram, linkage, cophenet
+
+# to suppress warnings
+import warnings
+warnings.filterwarnings("ignore")
+#getting dataset from drive
+from google.colab import drive
+drive.mount('/content/drive')
+Mounted at /content/drive
+data = pd.read_csv('/content/drive/MyDrive/unsupervisedLearning/stock_data.csv')
+Data Overview
+Observations
+Sanity checks
+#checking first 5 rows of the data
+data.head()
+Ticker Symbol	Security	GICS Sector	GICS Sub Industry	Current Price	Price Change	Volatility	ROE	Cash Ratio	Net Cash Flow	Net Income	Earnings Per Share	Estimated Shares Outstanding	P/E Ratio	P/B Ratio
+0	AAL	American Airlines Group	Industrials	Airlines	42.349998	9.999995	1.687151	135	51	-604000000	7610000000	11.39	6.681299e+08	3.718174	-8.784219
+1	ABBV	AbbVie	Health Care	Pharmaceuticals	59.240002	8.339433	2.197887	130	77	51000000	5144000000	3.15	1.633016e+09	18.806350	-8.750068
+2	ABT	Abbott Laboratories	Health Care	Health Care Equipment	44.910000	11.301121	1.273646	21	67	938000000	4423000000	2.94	1.504422e+09	15.275510	-0.394171
+3	ADBE	Adobe Systems Inc	Information Technology	Application Software	93.940002	13.977195	1.357679	9	180	-240840000	629551000	1.26	4.996437e+08	74.555557	4.199651
+4	ADI	Analog Devices, Inc.	Information Technology	Semiconductors	55.320000	-1.827858	1.701169	14	272	315120000	696878000	0.31	2.247994e+09	178.451613	1.059810
+#checking the shape of the data
+data.shape
+(340, 15)
+There are 340 rows and 15 columns in the dataset.
+#checking info
+data.info()
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 340 entries, 0 to 339
+Data columns (total 15 columns):
+ #   Column                        Non-Null Count  Dtype  
+---  ------                        --------------  -----  
+ 0   Ticker Symbol                 340 non-null    object 
+ 1   Security                      340 non-null    object 
+ 2   GICS Sector                   340 non-null    object 
+ 3   GICS Sub Industry             340 non-null    object 
+ 4   Current Price                 340 non-null    float64
+ 5   Price Change                  340 non-null    float64
+ 6   Volatility                    340 non-null    float64
+ 7   ROE                           340 non-null    int64  
+ 8   Cash Ratio                    340 non-null    int64  
+ 9   Net Cash Flow                 340 non-null    int64  
+ 10  Net Income                    340 non-null    int64  
+ 11  Earnings Per Share            340 non-null    float64
+ 12  Estimated Shares Outstanding  340 non-null    float64
+ 13  P/E Ratio                     340 non-null    float64
+ 14  P/B Ratio                     340 non-null    float64
+dtypes: float64(7), int64(4), object(4)
+memory usage: 40.0+ KB
+#checking for duplicate values
+data.duplicated().sum()
+0
+No duplicate data.
+#creating copy of the data
+df = data.copy()
+#checking for missing values
+df.isnull().sum()
+Ticker Symbol                   0
+Security                        0
+GICS Sector                     0
+GICS Sub Industry               0
+Current Price                   0
+Price Change                    0
+Volatility                      0
+ROE                             0
+Cash Ratio                      0
+Net Cash Flow                   0
+Net Income                      0
+Earnings Per Share              0
+Estimated Shares Outstanding    0
+P/E Ratio                       0
+P/B Ratio                       0
+dtype: int64
+#statiscal summary of the data
+df.describe().T
+count	mean	std	min	25%	50%	75%	max
+Current Price	340.0	8.086234e+01	9.805509e+01	4.500000e+00	3.855500e+01	5.970500e+01	9.288000e+01	1.274950e+03
+Price Change	340.0	4.078194e+00	1.200634e+01	-4.712969e+01	-9.394838e-01	4.819505e+00	1.069549e+01	5.505168e+01
+Volatility	340.0	1.525976e+00	5.917984e-01	7.331632e-01	1.134878e+00	1.385593e+00	1.695549e+00	4.580042e+00
+ROE	340.0	3.959706e+01	9.654754e+01	1.000000e+00	9.750000e+00	1.500000e+01	2.700000e+01	9.170000e+02
+Cash Ratio	340.0	7.002353e+01	9.042133e+01	0.000000e+00	1.800000e+01	4.700000e+01	9.900000e+01	9.580000e+02
+Net Cash Flow	340.0	5.553762e+07	1.946365e+09	-1.120800e+10	-1.939065e+08	2.098000e+06	1.698108e+08	2.076400e+10
+Net Income	340.0	1.494385e+09	3.940150e+09	-2.352800e+10	3.523012e+08	7.073360e+08	1.899000e+09	2.444200e+10
+Earnings Per Share	340.0	2.776662e+00	6.587779e+00	-6.120000e+01	1.557500e+00	2.895000e+00	4.620000e+00	5.009000e+01
+Estimated Shares Outstanding	340.0	5.770283e+08	8.458496e+08	2.767216e+07	1.588482e+08	3.096751e+08	5.731175e+08	6.159292e+09
+P/E Ratio	340.0	3.261256e+01	4.434873e+01	2.935451e+00	1.504465e+01	2.081988e+01	3.176476e+01	5.280391e+02
+P/B Ratio	340.0	-1.718249e+00	1.396691e+01	-7.611908e+01	-4.352056e+00	-1.067170e+00	3.917066e+00	1.290646e+02
+Exploratory Data Analysis (EDA)
+EDA is an important part of any project involving data.
+It is important to investigate and understand the data better before building a model with it.
+A few questions have been mentioned below which will help you approach the analysis in the right manner and generate insights from the data.
+A thorough analysis of the data, in addition to the questions mentioned below, should be done.
+Questions:
+
+What does the distribution of stock prices look like?
+The stocks of which economic sector have seen the maximum price increase on average?
+How are the different variables correlated with each other?
+Cash ratio provides a measure of a company's ability to cover its short-term obligations using only cash and cash equivalents. How does the average cash ratio vary across economic sectors?
+P/E ratios can help determine the relative value of a company's shares as they signify the amount of money an investor is willing to invest in a single share of a company per dollar of its earnings. How does the P/E ratio vary, on average, across economic sectors?
+Univariate Analysis
+
+# function to plot a boxplot and a histogram along the same scale.
+
+
+def histogram_boxplot(df, feature, figsize=(12, 7), kde=False, bins=None):
+
+    f2, (ax_box2, ax_hist2) = plt.subplots(
+        nrows=2,  # Number of rows of the subplot grid= 2
+        sharex=True,  # x-axis will be shared among all subplots
+        gridspec_kw={"height_ratios": (0.25, 0.75)},
+        figsize=figsize,
+    )  # creating the 2 subplots
+    sns.boxplot(
+        data=df, x=feature, ax=ax_box2, showmeans=True, color="violet"
+    )  # boxplot will be created and a star will indicate the mean value of the column
+    sns.histplot(
+        data=df, x=feature, kde=kde, ax=ax_hist2, bins=bins, palette="winter"
+    ) if bins else sns.histplot(
+        data=df, x=feature, kde=kde, ax=ax_hist2
+    )  # For histogram
+    ax_hist2.axvline(
+        df[feature].mean(), color="green", linestyle="--"
+    )  # Add mean to the histogram
+    ax_hist2.axvline(
+        df[feature].median(), color="black", linestyle="-"
+    )  # Add median to the histogram
+# function to create labeled barplots
+
+
+def labeled_barplot(df, feature, perc=False, n=None):
+
+    total = len(df[feature])  # length of the column
+    count = df[feature].nunique()
+    if n is None:
+        plt.figure(figsize=(count + 1, 5))
+    else:
+        plt.figure(figsize=(n + 1, 5))
+
+    plt.xticks(rotation=90, fontsize=15)
+    ax = sns.countplot(
+        data=df,
+        x=feature,
+        palette="Paired",
+        order=df[feature].value_counts().index[:n].sort_values(),
+    )
+
+    for p in ax.patches:
+        if perc == True:
+            label = "{:.1f}%".format(
+                100 * p.get_height() / total
+            )  # percentage of each class of the category
+        else:
+            label = p.get_height()  # count of each level of the category
+
+        x = p.get_x() + p.get_width() / 2  # width of the plot
+        y = p.get_height()  # height of the plot
+
+        ax.annotate(
+            label,
+            (x, y),
+            ha="center",
+            va="center",
+            size=12,
+            xytext=(0, 5),
+            textcoords="offset points",
+        )  # annotate the percentage
+
+    plt.show()  # show the plot
+GICS sector
+
+labeled_barplot(df, 'GICS Sector', perc=True)
+
+High number of companies in the industrial sector.
+GICS sub industry
+
+labeled_barplot(df, 'GICS Sub Industry', perc=True)
+
+Maximum companies are in oil and gas exploration and production.
+Current price
+
+histogram_boxplot(df, 'Current Price')
+
+Price change
+
+histogram_boxplot(df, 'Price Change')
+
+Volatility
+
+histogram_boxplot(df, 'Volatility')
+
+ROE
+
+histogram_boxplot(df, 'ROE')
+
+Cash Ratio
+
+histogram_boxplot(df, 'Cash Ratio')
+
+Net Cash Flow
+
+histogram_boxplot(df, 'Net Cash Flow')
+
+Net Income
+
+histogram_boxplot(df, 'Net Income')
+
+Earnings per share
+
+histogram_boxplot(df, 'Earnings Per Share')
+
+Estimated shares outstanding
+
+histogram_boxplot(df, 'Estimated Shares Outstanding')
+
+P/E ratio
+
+histogram_boxplot(df, 'P/E Ratio')
+
+P/B ratio
+
+histogram_boxplot(df, 'P/B Ratio')
+
+Bivariate Analysis
+
+# correlation check
+plt.figure(figsize=(14, 8))
+sns.heatmap(
+    df.corr(), annot=True, vmin=-1, vmax=1, fmt=".2f", cmap="Spectral"
+)
+plt.show()
+
+Strong correlation between net income and estimated shares outstanding is observed.
+Also there is a strong relation between net income and earnings per share.
+GICS sector vs Current price
+
+plt.figure(figsize=(18,8))
+sns.barplot(data=df, x='GICS Sector', y='Current Price', ci=False)
+plt.xticks(rotation=90)
+plt.show()
+
+The current share price is highest in the health care and consumer discretionary sector.
+GICS sector vs Price change
+
+plt.figure(figsize=(16,8))
+sns.barplot(data=df, x='GICS Sector', y='Price Change', ci=False)
+plt.xticks(rotation=90)
+plt.show()
+
+The price change in 13 weeks is maximum in energy sector.
+GICS sector vs Volatility
+
+plt.figure(figsize=(18,8))
+sns.barplot(data=df, x='GICS Sector', y='Volatility', ci=False)
+plt.xticks(rotation=90)
+plt.show()
+
+GICS sector vc P/E Ratio
+
+plt.figure(figsize=(18,8))
+sns.barplot(data=df, x='GICS Sector', y='P/E Ratio', ci=False)
+plt.xticks(rotation=90)
+plt.show()
+
+GICS sector vs Cash Ratio
+
+plt.figure(figsize=(18,8))
+sns.barplot(data=df, x='GICS Sector', y='Cash Ratio', ci=False)
+plt.xticks(rotation=90)
+plt.show()
+
+Cash ratio is highest for the IT sector.
+GICS sector vs Net Income
+
+plt.figure(figsize=(18,8))
+sns.barplot(data=df, x='GICS Sector', y='Net Income', ci=False)
+plt.xticks(rotation=90)
+plt.show()
+
+Telecommunications services has the hishest income.
+Data Preprocessing
+Duplicate value check
+Missing value treatment
+Outlier check
+Feature engineering (if needed)
+Any other preprocessing steps (if needed)
+#plotting the box plot to check for outliers'
+
+plt.figure(figsize=(16, 12))
+
+numeric_columns = df.select_dtypes(include=np.number).columns.tolist()
+
+for i, variable in enumerate(numeric_columns):
+    plt.subplot(3, 4, i + 1)
+    plt.boxplot(df[variable], whis=1.5)
+    plt.tight_layout()
+    plt.title(variable)
+
+plt.show()
+
+Data contains multiple outliers but all the value mentioned are true and not made up. Hence, we will proceed ahead without treating it.
+Scaling the data
+
+scaler = StandardScaler()
+subset = df[numeric_columns].copy()  
+subset_scaled = scaler.fit_transform(subset)
+subset_scaled_df = pd.DataFrame(subset_scaled, columns=subset.columns)
+subset_scaled_df
+Current Price	Price Change	Volatility	ROE	Cash Ratio	Net Cash Flow	Net Income	Earnings Per Share	Estimated Shares Outstanding	P/E Ratio	P/B Ratio
+0	-0.393341	0.493950	0.272749	0.989601	-0.210698	-0.339355	1.554415	1.309399	0.107863	-0.652487	-0.506653
+1	-0.220837	0.355439	1.137045	0.937737	0.077269	-0.002335	0.927628	0.056755	1.250274	-0.311769	-0.504205
+2	-0.367195	0.602479	-0.427007	-0.192905	-0.033488	0.454058	0.744371	0.024831	1.098021	-0.391502	0.094941
+3	0.133567	0.825696	-0.284802	-0.317379	1.218059	-0.152497	-0.219816	-0.230563	-0.091622	0.947148	0.424333
+4	-0.260874	-0.492636	0.296470	-0.265515	2.237018	0.133564	-0.202703	-0.374982	1.978399	3.293307	0.199196
+...	...	...	...	...	...	...	...	...	...	...	...
+335	-0.486181	0.901646	0.540121	-0.255142	4.308162	-0.559673	-1.487784	-1.127481	0.429111	-0.082116	0.572194
+336	-0.289510	-1.065766	-0.079703	1.062211	-0.476513	0.053235	-0.051186	0.029391	-0.167741	-0.337154	-0.152012
+337	0.221913	0.439539	-0.206067	-0.400362	0.332009	0.164889	-0.342467	-0.303532	-0.460058	2.233634	-1.589390
+338	-0.547053	-0.436811	-0.097813	-0.369243	0.320933	-0.051022	-0.301171	-0.239684	-0.377852	-0.222714	0.118680
+339	-0.336453	1.051046	0.142671	-0.078803	-0.055639	0.111378	-0.293666	-0.318734	-0.092942	0.854902	0.246754
+340 rows × 11 columns
+
+As observed the data is being scaled.
+K-means Clustering
+Creating Elbow plot
+
+k_means_df = subset_scaled_df.copy()
+clusters = range(1, 15)
+meanDistortions = []
+
+for k in clusters:
+    model = KMeans(n_clusters=k, random_state=1)
+    model.fit(subset_scaled_df)
+    prediction = model.predict(k_means_df)
+    distortion = (
+        sum(np.min(cdist(k_means_df, model.cluster_centers_, "euclidean"), axis=1))
+        / k_means_df.shape[0]
+    )
+
+    meanDistortions.append(distortion)
+
+    print("Number of Clusters:", k, "\tAverage Distortion:", distortion)
+
+plt.plot(clusters, meanDistortions, "bx-")
+plt.xlabel("k")
+plt.ylabel("Average Distortion")
+plt.title("Selecting k with the Elbow Method", fontsize=20)
+plt.show()
+Number of Clusters: 1 	Average Distortion: 2.5425069919221697
+Number of Clusters: 2 	Average Distortion: 2.382318498894466
+Number of Clusters: 3 	Average Distortion: 2.2692367155390745
+Number of Clusters: 4 	Average Distortion: 2.1745559827866363
+Number of Clusters: 5 	Average Distortion: 2.128799332840716
+Number of Clusters: 6 	Average Distortion: 2.080400099226289
+Number of Clusters: 7 	Average Distortion: 2.0289794220177395
+Number of Clusters: 8 	Average Distortion: 1.964144163389972
+Number of Clusters: 9 	Average Distortion: 1.9221492045198068
+Number of Clusters: 10 	Average Distortion: 1.8513913649973124
+Number of Clusters: 11 	Average Distortion: 1.8024134734578485
+Number of Clusters: 12 	Average Distortion: 1.7900931879652673
+Number of Clusters: 13 	Average Distortion: 1.7417609203336912
+Number of Clusters: 14 	Average Distortion: 1.673559857259703
+
+The appropriate value of k from the elbow curve seems to be 6 or 7.
+Checking the silhouette scores
+
+sil_score = []
+cluster_list = range(2, 15)
+for n_clusters in cluster_list:
+    clusterer = KMeans(n_clusters=n_clusters, random_state=1)
+    preds = clusterer.fit_predict((subset_scaled_df))
+    score = silhouette_score(k_means_df, preds)
+    sil_score.append(score)
+    print("For n_clusters = {}, the silhouette score is {})".format(n_clusters, score))
+
+plt.plot(cluster_list, sil_score)
+plt.show()
+For n_clusters = 2, the silhouette score is 0.43969639509980457)
+For n_clusters = 3, the silhouette score is 0.4644405674779404)
+For n_clusters = 4, the silhouette score is 0.4577225970476733)
+For n_clusters = 5, the silhouette score is 0.43228336443659804)
+For n_clusters = 6, the silhouette score is 0.4005422737213617)
+For n_clusters = 7, the silhouette score is 0.3976335364987305)
+For n_clusters = 8, the silhouette score is 0.40278401969450467)
+For n_clusters = 9, the silhouette score is 0.3778585981433699)
+For n_clusters = 10, the silhouette score is 0.13458938329968687)
+For n_clusters = 11, the silhouette score is 0.1421832155528444)
+For n_clusters = 12, the silhouette score is 0.2044669621527429)
+For n_clusters = 13, the silhouette score is 0.23424874810104204)
+For n_clusters = 14, the silhouette score is 0.12102526472829901)
+
+From the silhouette scores, it seems that 3 is a good value of k.
+# finding optimal no. of clusters with silhouette coefficients
+visualizer = SilhouetteVisualizer(KMeans(3, random_state=1)) 
+visualizer.fit(k_means_df)
+visualizer.show()
+
+<matplotlib.axes._subplots.AxesSubplot at 0x7f3ab41c3ee0>
+# finding optimal no. of clusters with silhouette coefficients
+visualizer = SilhouetteVisualizer(KMeans(2, random_state=1)) 
+visualizer.fit(k_means_df)
+visualizer.show()
+
+<matplotlib.axes._subplots.AxesSubplot at 0x7f3ab84ba430>
+# finding optimal no. of clusters with silhouette coefficients
+visualizer = SilhouetteVisualizer(KMeans(6, random_state=1)) 
+visualizer.fit(k_means_df)
+visualizer.show()
+
+<matplotlib.axes._subplots.AxesSubplot at 0x7f3ab8366af0>
+# finding optimal no. of clusters with silhouette coefficients
+visualizer = SilhouetteVisualizer(KMeans(8, random_state=1)) 
+visualizer.fit(k_means_df)
+visualizer.show()
+
+<matplotlib.axes._subplots.AxesSubplot at 0x7f3ab41be0d0>
+Lets take 3 as the appropriate no. of clusters as the silhouette score is high enough an there is a knick at 3 in the elbow curve.
+Final model
+
+kmeans = KMeans(n_clusters=3, random_state=1) 
+kmeans.fit(k_means_df)
+KMeans(n_clusters=3, random_state=1)
+# creating a copy of the original data
+df1 = df.copy()
+
+# adding kmeans cluster labels to the original and scaled dataframes
+k_means_df["KM_segments"] = kmeans.labels_
+df1["KM_segments"] = kmeans.labels_
+Cluster Profiling
+
+km_cluster_profile = df1.groupby('KM_segments').mean()  
+km_cluster_profile["count_in_each_segment"] = (
+    df1.groupby('KM_segments')["Security"].count().values  
+)
+km_cluster_profile.style.highlight_max(color="lightgreen", axis=0)
+ 	Current Price	Price Change	Volatility	ROE	Cash Ratio	Net Cash Flow	Net Income	Earnings Per Share	Estimated Shares Outstanding	P/E Ratio	P/B Ratio	count_in_each_segment
+KM_segments	 	 	 	 	 	 	 	 	 	 	 	 
+0	52.142857	6.779993	1.175153	26.142857	140.142857	760285714.285714	13368785714.285715	3.769286	3838879870.871428	20.654832	-3.529270	14
+1	64.183438	-10.557046	2.797776	96.531250	70.718750	159171125.000000	-3250005968.750000	-7.886875	526459323.057500	111.333230	1.783445	32
+2	84.045331	5.542488	1.404255	34.040816	66.608844	10698350.340136	1445333183.673469	3.890051	427206184.715408	24.613743	-2.013147	294
+##companies in each cluster
+for cl in df1["KM_segments"].unique():
+    print("In cluster {}, the following companies are present:".format(cl))
+    print(df1[df1["KM_segments"] == cl]["Security"].unique())
+    print()
+In cluster 2, the following companies are present:
+['American Airlines Group' 'AbbVie' 'Abbott Laboratories'
+ 'Adobe Systems Inc' 'Archer-Daniels-Midland Co' 'Alliance Data Systems'
+ 'Ameren Corp' 'American Electric Power' 'AFLAC Inc'
+ 'American International Group, Inc.' 'Apartment Investment & Mgmt'
+ 'Assurant Inc' 'Arthur J. Gallagher & Co.' 'Akamai Technologies Inc'
+ 'Albemarle Corp' 'Alaska Air Group Inc' 'Allstate Corp' 'Allegion'
+ 'Applied Materials Inc' 'AMETEK Inc' 'Affiliated Managers Group Inc'
+ 'Amgen Inc' 'Ameriprise Financial' 'American Tower Corp A'
+ 'AutoNation Inc' 'Anthem Inc.' 'Aon plc' 'Amphenol Corp' 'Arconic Inc'
+ 'Activision Blizzard' 'AvalonBay Communities, Inc.' 'Broadcom'
+ 'American Water Works Company Inc' 'American Express Co' 'Boeing Company'
+ 'Baxter International Inc.' 'BB&T Corporation' 'Bard (C.R.) Inc.'
+ 'BIOGEN IDEC Inc.' 'The Bank of New York Mellon Corp.' 'Ball Corp'
+ 'Bristol-Myers Squibb' 'Boston Scientific' 'BorgWarner'
+ 'Boston Properties' 'Caterpillar Inc.' 'Chubb Limited' 'CBRE Group'
+ 'Crown Castle International Corp.' 'Carnival Corp.' 'Celgene Corp.'
+ 'CF Industries Holdings Inc' 'Citizens Financial Group' 'Church & Dwight'
+ 'C. H. Robinson Worldwide' 'Charter Communications' 'CIGNA Corp.'
+ 'Cincinnati Financial' 'Colgate-Palmolive' 'Comerica Inc.'
+ 'CME Group Inc.' 'Chipotle Mexican Grill' 'Cummins Inc.' 'CMS Energy'
+ 'Centene Corporation' 'CenterPoint Energy' 'Capital One Financial'
+ 'The Cooper Companies' 'CSX Corp.' 'CenturyLink Inc'
+ 'Cognizant Technology Solutions' 'Citrix Systems' 'CVS Health'
+ 'Chevron Corp.' 'Dominion Resources' 'Delta Air Lines' 'Du Pont (E.I.)'
+ 'Deere & Co.' 'Discover Financial Services' 'Quest Diagnostics'
+ 'Danaher Corp.' 'The Walt Disney Company' 'Discovery Communications-A'
+ 'Discovery Communications-C' 'Delphi Automotive' 'Digital Realty Trust'
+ 'Dun & Bradstreet' 'Dover Corp.' 'Dr Pepper Snapple Group' 'Duke Energy'
+ 'DaVita Inc.' 'eBay Inc.' 'Ecolab Inc.' 'Consolidated Edison'
+ 'Equifax Inc.' "Edison Int'l" 'Eastman Chemical' 'Equinix'
+ 'Equity Residential' 'Eversource Energy' 'Essex Property Trust, Inc.'
+ 'E*Trade' 'Eaton Corporation' 'Entergy Corp.' 'Edwards Lifesciences'
+ 'Exelon Corp.' "Expeditors Int'l" 'Expedia Inc.' 'Extra Space Storage'
+ 'Fastenal Co' 'Fortune Brands Home & Security' 'FirstEnergy Corp'
+ 'Fidelity National Information Services' 'Fiserv Inc' 'FLIR Systems'
+ 'Fluor Corp.' 'Flowserve Corporation' 'FMC Corporation'
+ 'Federal Realty Investment Trust' 'First Solar Inc'
+ 'Frontier Communications' 'General Dynamics'
+ 'General Growth Properties Inc.' 'Corning Inc.' 'General Motors'
+ 'Genuine Parts' 'Garmin Ltd.' 'Goodyear Tire & Rubber'
+ 'Grainger (W.W.) Inc.' 'Hasbro Inc.' 'Huntington Bancshares'
+ 'HCA Holdings' 'Welltower Inc.' 'HCP Inc.' 'Hartford Financial Svc.Gp.'
+ 'Harley-Davidson' "Honeywell Int'l Inc." 'HP Inc.' 'Hormel Foods Corp.'
+ 'Henry Schein' 'Host Hotels & Resorts' 'The Hershey Company'
+ 'Humana Inc.' 'International Business Machines' 'IDEXX Laboratories'
+ 'Intl Flavors & Fragrances' 'International Paper' 'Interpublic Group'
+ 'Iron Mountain Incorporated' 'Intuitive Surgical Inc.'
+ 'Illinois Tool Works' 'Invesco Ltd.' 'J. B. Hunt Transport Services'
+ 'Jacobs Engineering Group' 'Juniper Networks' 'Kimco Realty'
+ 'Kimberly-Clark' 'Kansas City Southern' 'Leggett & Platt' 'Lennar Corp.'
+ 'Laboratory Corp. of America Holding' 'LKQ Corporation'
+ 'L-3 Communications Holdings' 'Lilly (Eli) & Co.' 'Lockheed Martin Corp.'
+ 'Alliant Energy Corp' 'Leucadia National Corp.' 'Southwest Airlines'
+ 'Level 3 Communications' 'LyondellBasell' 'Mastercard Inc.'
+ 'Mid-America Apartments' 'Macerich' "Marriott Int'l." 'Masco Corp.'
+ 'Mattel Inc.' "McDonald's Corp." "Moody's Corp" 'Mondelez International'
+ 'MetLife Inc.' 'Mohawk Industries' 'Mead Johnson' 'McCormick & Co.'
+ 'Martin Marietta Materials' 'Marsh & McLennan' '3M Company'
+ 'Monster Beverage' 'Altria Group Inc' 'The Mosaic Company'
+ 'Marathon Petroleum' 'M&T Bank Corp.' 'Mettler Toledo' 'Mylan N.V.'
+ 'Navient' 'NASDAQ OMX Group' 'NextEra Energy'
+ 'Newmont Mining Corp. (Hldg. Co.)' 'Nielsen Holdings'
+ 'Norfolk Southern Corp.' 'Northern Trust Corp.' 'Nucor Corp.'
+ 'Newell Brands' 'Realty Income Corporation' 'Omnicom Group'
+ "O'Reilly Automotive" "People's United Financial" 'Pitney-Bowes'
+ 'PACCAR Inc.' 'PG&E Corp.' 'Priceline.com Inc'
+ 'Public Serv. Enterprise Inc.' 'PepsiCo Inc.' 'Principal Financial Group'
+ 'Procter & Gamble' 'Progressive Corp.' 'Pulte Homes Inc.'
+ 'Philip Morris International' 'PNC Financial Services' 'Pentair Ltd.'
+ 'Pinnacle West Capital' 'PPG Industries' 'PPL Corp.'
+ 'Prudential Financial' 'Phillips 66' 'Praxair Inc.' 'PayPal'
+ 'Ryder System' 'Royal Caribbean Cruises Ltd' 'Regeneron'
+ 'Robert Half International' 'Roper Industries' 'Republic Services Inc'
+ 'SCANA Corp' 'Charles Schwab Corporation' 'Spectra Energy Corp.'
+ 'Sealed Air' 'Sherwin-Williams' 'SL Green Realty'
+ 'Scripps Networks Interactive Inc.' 'Southern Co.'
+ 'Simon Property Group Inc' 'S&P Global, Inc.' 'Stericycle Inc'
+ 'Sempra Energy' 'SunTrust Banks' 'State Street Corp.'
+ 'Skyworks Solutions' 'Synchrony Financial' 'Stryker Corp.'
+ 'Molson Coors Brewing Company' 'Tegna, Inc.' 'Torchmark Corp.'
+ 'Thermo Fisher Scientific' 'TripAdvisor' 'The Travelers Companies Inc.'
+ 'Tractor Supply Company' 'Tyson Foods' 'Tesoro Petroleum Co.'
+ 'Total System Services' 'Texas Instruments' 'Under Armour'
+ 'United Continental Holdings' 'UDR Inc' 'Universal Health Services, Inc.'
+ 'United Health Group Inc.' 'Unum Group' 'Union Pacific'
+ 'United Parcel Service' 'United Technologies' 'Varian Medical Systems'
+ 'Valero Energy' 'Vulcan Materials' 'Vornado Realty Trust'
+ 'Verisk Analytics' 'Verisign Inc.' 'Vertex Pharmaceuticals Inc'
+ 'Ventas Inc' 'Waters Corporation' 'Wec Energy Group Inc'
+ 'Whirlpool Corp.' 'Waste Management Inc.' 'Western Union Co'
+ 'Weyerhaeuser Corp.' 'Wyndham Worldwide' 'Xcel Energy Inc' 'XL Capital'
+ 'Dentsply Sirona' 'Xerox Corp.' 'Xylem Inc.' 'Yahoo Inc.'
+ 'Yum! Brands Inc' 'Zimmer Biomet Holdings' 'Zions Bancorp' 'Zoetis']
+
+In cluster 1, the following companies are present:
+['Analog Devices, Inc.' 'Alexion Pharmaceuticals' 'Amazon.com Inc'
+ 'Apache Corporation' 'Anadarko Petroleum Corp' 'Baker Hughes Inc'
+ 'Chesapeake Energy' 'Cabot Oil & Gas' 'Concho Resources'
+ 'Devon Energy Corp.' 'EOG Resources' 'EQT Corporation'
+ 'Freeport-McMoran Cp & Gld' 'Halliburton Co.' 'Hess Corporation'
+ 'Hewlett Packard Enterprise' 'Kinder Morgan' 'Marathon Oil Corp.'
+ 'Murphy Oil' 'Noble Energy Inc' 'Netflix Inc.' 'Newfield Exploration Co'
+ 'National Oilwell Varco Inc.' 'ONEOK' 'Occidental Petroleum'
+ 'Quanta Services Inc.' 'Range Resources Corp.' 'Southwestern Energy'
+ 'Teradata Corp.' 'Williams Cos.' 'Wynn Resorts Ltd' 'Cimarex Energy']
+
+In cluster 0, the following companies are present:
+['Bank of America Corp' 'Citigroup Inc.' 'Ford Motor' 'Facebook'
+ 'Gilead Sciences' 'Intel Corp.' 'JPMorgan Chase & Co.'
+ 'Coca Cola Company' 'Merck & Co.' 'Pfizer Inc.' 'AT&T Inc'
+ 'Verizon Communications' 'Wells Fargo' 'Exxon Mobil Corp.']
+
+df1.groupby(["KM_segments", "GICS Sector"])['Security'].count()
+KM_segments  GICS Sector                
+0            Consumer Discretionary          1
+             Consumer Staples                1
+             Energy                          1
+             Financials                      4
+             Health Care                     3
+             Information Technology          2
+             Telecommunications Services     2
+1            Consumer Discretionary          2
+             Energy                         23
+             Health Care                     1
+             Industrials                     1
+             Information Technology          4
+             Materials                       1
+2            Consumer Discretionary         37
+             Consumer Staples               18
+             Energy                          6
+             Financials                     45
+             Health Care                    36
+             Industrials                    52
+             Information Technology         27
+             Materials                      19
+             Real Estate                    27
+             Telecommunications Services     3
+             Utilities                      24
+Name: Security, dtype: int64
+plt.figure(figsize=(20, 20))
+plt.suptitle("Boxplot of numerical variables for each cluster")
+
+# selecting numerical columns
+num_col = df.select_dtypes(include=np.number).columns.tolist()
+
+for i, variable in enumerate(num_col):
+    plt.subplot(3, 4, i + 1)
+    sns.boxplot(data=df1, x="KM_segments", y=variable)
+
+plt.tight_layout(pad=2.0)
+
+Observations
+
+Cluster 0
+
+Current price, ROE and cash ratio are very low.
+Net income and estimated shares outstanding are considerably high.
+Cluster 1
+
+Volatility is very high.
+Current price, ROE, cash ratio and estimated shares outstanding are very low.
+Cluster 2
+
+Earnigns per share, net income and price change are high.
+P/E ration and cash ratio are pretty low.
+Hierarchical Clustering
+hc_df = subset_scaled_df.copy()
+# list of distance metrics
+distance_metrics = ["euclidean", "chebyshev", "mahalanobis", "cityblock"]
+# list of linkage methods
+linkage_methods = ["single", "complete", "average", "weighted"] 
+
+high_cophenet_corr = 0
+high_dm_lm = [0, 0]
+
+for dm in distance_metrics:
+    for lm in linkage_methods:
+        Z = linkage(hc_df, metric=dm, method=lm)
+        c, coph_dists = cophenet(Z, pdist(hc_df))
+        print(
+            "Cophenetic correlation for {} distance and {} linkage is {}.".format(
+                dm.capitalize(), lm, c
+            )
+        )
+        if high_cophenet_corr < c:
+            high_cophenet_corr = c
+            high_dm_lm[0] = dm
+            high_dm_lm[1] = lm
+            
+Cophenetic correlation for Euclidean distance and single linkage is 0.9232271494002922.
+Cophenetic correlation for Euclidean distance and complete linkage is 0.7873280186580672.
+Cophenetic correlation for Euclidean distance and average linkage is 0.9422540609560814.
+Cophenetic correlation for Euclidean distance and weighted linkage is 0.8693784298129404.
+Cophenetic correlation for Chebyshev distance and single linkage is 0.9062538164750717.
+Cophenetic correlation for Chebyshev distance and complete linkage is 0.598891419111242.
+Cophenetic correlation for Chebyshev distance and average linkage is 0.9338265528030499.
+Cophenetic correlation for Chebyshev distance and weighted linkage is 0.9127355892367.
+Cophenetic correlation for Mahalanobis distance and single linkage is 0.925919553052459.
+Cophenetic correlation for Mahalanobis distance and complete linkage is 0.7925307202850002.
+Cophenetic correlation for Mahalanobis distance and average linkage is 0.9247324030159736.
+Cophenetic correlation for Mahalanobis distance and weighted linkage is 0.8708317490180428.
+Cophenetic correlation for Cityblock distance and single linkage is 0.9334186366528574.
+Cophenetic correlation for Cityblock distance and complete linkage is 0.7375328863205818.
+Cophenetic correlation for Cityblock distance and average linkage is 0.9302145048594667.
+Cophenetic correlation for Cityblock distance and weighted linkage is 0.731045513520281.
+# printing the combination of distance metric and linkage method with the highest cophenetic correlation
+print(
+    "Highest cophenetic correlation is {}, which is obtained with {} distance and {} linkage.".format(
+        high_cophenet_corr, high_dm_lm[0].capitalize(), high_dm_lm[1]
+    )
+)
+Highest cophenetic correlation is 0.9422540609560814, which is obtained with Euclidean distance and average linkage.
+Different linkage methods with Euclidean distance
+
+# list of linkage methods
+linkage_methods = ["single", "complete", "average", "centroid", "ward", "weighted"] 
+
+high_cophenet_corr = 0
+high_dm_lm = [0, 0]
+
+for lm in linkage_methods:
+    Z = linkage(hc_df, metric="euclidean", method=lm)
+    c, coph_dists = cophenet(Z, pdist(hc_df))
+    print("Cophenetic correlation for {} linkage is {}.".format(lm, c))
+    if high_cophenet_corr < c:
+        high_cophenet_corr = c
+        high_dm_lm[0] = "euclidean"
+        high_dm_lm[1] = lm
+        
+Cophenetic correlation for single linkage is 0.9232271494002922.
+Cophenetic correlation for complete linkage is 0.7873280186580672.
+Cophenetic correlation for average linkage is 0.9422540609560814.
+Cophenetic correlation for centroid linkage is 0.9314012446828154.
+Cophenetic correlation for ward linkage is 0.7101180299865353.
+Cophenetic correlation for weighted linkage is 0.8693784298129404.
+# printing the combination of distance metric and linkage method with the highest cophenetic correlation
+print(
+    "Highest cophenetic correlation is {}, which is obtained with {} linkage.".format(
+        high_cophenet_corr, high_dm_lm[1]
+    )
+)
+Highest cophenetic correlation is 0.9422540609560814, which is obtained with average linkage.
+We see that the cophenetic correlation is maximum with Euclidean distance and average linkage.
+Checking Dendrograms
+
+# list of linkage methods
+linkage_methods = ["single", "complete", "average", "centroid", "ward", "weighted"] 
+
+# lists to save results of cophenetic correlation calculation
+compare_cols = ["Linkage", "Cophenetic Coefficient"]
+compare = []
+
+# to create a subplot image
+fig, axs = plt.subplots(len(linkage_methods), 1, figsize=(15, 30))
+
+#plot the dendrogram and calculate the cophenetic correlation
+for i, method in enumerate(linkage_methods):
+    Z = linkage(hc_df, metric="euclidean", method=method)
+
+    dendrogram(Z, ax=axs[i])
+    axs[i].set_title(f"Dendrogram ({method.capitalize()} Linkage)")
+
+    coph_corr, coph_dist = cophenet(Z, pdist(hc_df))
+    axs[i].annotate(
+        f"Cophenetic\nCorrelation\n{coph_corr:0.2f}",
+        (0.80, 0.80),
+        xycoords="axes fraction",
+    )
+
+    compare.append([method, coph_corr])
+
+Observations
+
+The cophenetic correlation is highest for average linkage methods.
+6 appears to be the appropriate number of clusters from the dendrogram for average linkage.
+Creating Model
+
+HCmodel = AgglomerativeClustering(n_clusters=6, affinity='euclidean', linkage='average')  
+HCmodel.fit(hc_df)
+AgglomerativeClustering(linkage='average', n_clusters=6)
+# creating a copy of the original data
+df2 = df.copy()
+
+# adding hierarchical cluster labels to the original and scaled dataframes
+hc_df["HC_segments"] = HCmodel.labels_
+df2["HC_segments"] = HCmodel.labels_
+Cluster Profiling
+
+hc_cluster_profile = df2.groupby("HC_segments").mean()  
+hc_cluster_profile["count_in_each_segment"] = (
+    df2.groupby("HC_segments")["Security"].count().values  
+)
+hc_cluster_profile.style.highlight_max(color="lightgreen", axis=0)
+ 	Current Price	Price Change	Volatility	ROE	Cash Ratio	Net Cash Flow	Net Income	Earnings Per Share	Estimated Shares Outstanding	P/E Ratio	P/B Ratio	count_in_each_segment
+HC_segments	 	 	 	 	 	 	 	 	 	 	 	 
+0	77.287589	4.099730	1.518066	35.336336	66.900901	-33197321.321321	1538074666.666667	2.885270	560505037.293544	32.441706	-2.174921	333
+1	25.640000	11.237908	1.322355	12.500000	130.500000	16755500000.000000	13654000000.000000	3.295000	2791829362.100000	13.649696	1.508484	2
+2	24.485001	-13.351992	3.482611	802.000000	51.000000	-1292500000.000000	-19106500000.000000	-41.815000	519573983.250000	60.748608	1.565141	2
+3	104.660004	16.224320	1.320606	8.000000	958.000000	592000000.000000	3669000000.000000	1.310000	2800763359.000000	79.893133	5.884467	1
+4	1274.949951	3.190527	1.268340	29.000000	184.000000	-1671386000.000000	2551360000.000000	50.090000	50935516.070000	25.453183	-1.052429	1
+5	276.570007	6.189286	1.116976	30.000000	25.000000	90885000.000000	596541000.000000	8.910000	66951851.850000	31.040405	129.064585	1
+for cl in df2["HC_segments"].unique():
+    print("In cluster {}, the following companies are present:".format(cl))
+    print(df2[df2["HC_segments"] == cl]["Security"].unique())
+    print()
+In cluster 0, the following companies are present:
+['American Airlines Group' 'AbbVie' 'Abbott Laboratories'
+ 'Adobe Systems Inc' 'Analog Devices, Inc.' 'Archer-Daniels-Midland Co'
+ 'Ameren Corp' 'American Electric Power' 'AFLAC Inc'
+ 'American International Group, Inc.' 'Apartment Investment & Mgmt'
+ 'Assurant Inc' 'Arthur J. Gallagher & Co.' 'Akamai Technologies Inc'
+ 'Albemarle Corp' 'Alaska Air Group Inc' 'Allstate Corp' 'Allegion'
+ 'Alexion Pharmaceuticals' 'Applied Materials Inc' 'AMETEK Inc'
+ 'Affiliated Managers Group Inc' 'Amgen Inc' 'Ameriprise Financial'
+ 'American Tower Corp A' 'Amazon.com Inc' 'AutoNation Inc' 'Anthem Inc.'
+ 'Aon plc' 'Anadarko Petroleum Corp' 'Amphenol Corp' 'Arconic Inc'
+ 'Activision Blizzard' 'AvalonBay Communities, Inc.' 'Broadcom'
+ 'American Water Works Company Inc' 'American Express Co' 'Boeing Company'
+ 'Baxter International Inc.' 'BB&T Corporation' 'Bard (C.R.) Inc.'
+ 'Baker Hughes Inc' 'BIOGEN IDEC Inc.' 'The Bank of New York Mellon Corp.'
+ 'Ball Corp' 'Bristol-Myers Squibb' 'Boston Scientific' 'BorgWarner'
+ 'Boston Properties' 'Citigroup Inc.' 'Caterpillar Inc.' 'Chubb Limited'
+ 'CBRE Group' 'Crown Castle International Corp.' 'Carnival Corp.'
+ 'Celgene Corp.' 'CF Industries Holdings Inc' 'Citizens Financial Group'
+ 'Church & Dwight' 'C. H. Robinson Worldwide' 'Charter Communications'
+ 'CIGNA Corp.' 'Cincinnati Financial' 'Colgate-Palmolive' 'Comerica Inc.'
+ 'CME Group Inc.' 'Chipotle Mexican Grill' 'Cummins Inc.' 'CMS Energy'
+ 'Centene Corporation' 'CenterPoint Energy' 'Capital One Financial'
+ 'Cabot Oil & Gas' 'The Cooper Companies' 'CSX Corp.' 'CenturyLink Inc'
+ 'Cognizant Technology Solutions' 'Citrix Systems' 'CVS Health'
+ 'Chevron Corp.' 'Concho Resources' 'Dominion Resources' 'Delta Air Lines'
+ 'Du Pont (E.I.)' 'Deere & Co.' 'Discover Financial Services'
+ 'Quest Diagnostics' 'Danaher Corp.' 'The Walt Disney Company'
+ 'Discovery Communications-A' 'Discovery Communications-C'
+ 'Delphi Automotive' 'Digital Realty Trust' 'Dun & Bradstreet'
+ 'Dover Corp.' 'Dr Pepper Snapple Group' 'Duke Energy' 'DaVita Inc.'
+ 'Devon Energy Corp.' 'eBay Inc.' 'Ecolab Inc.' 'Consolidated Edison'
+ 'Equifax Inc.' "Edison Int'l" 'Eastman Chemical' 'EOG Resources'
+ 'Equinix' 'Equity Residential' 'EQT Corporation' 'Eversource Energy'
+ 'Essex Property Trust, Inc.' 'E*Trade' 'Eaton Corporation'
+ 'Entergy Corp.' 'Edwards Lifesciences' 'Exelon Corp.' "Expeditors Int'l"
+ 'Expedia Inc.' 'Extra Space Storage' 'Ford Motor' 'Fastenal Co'
+ 'Fortune Brands Home & Security' 'Freeport-McMoran Cp & Gld'
+ 'FirstEnergy Corp' 'Fidelity National Information Services' 'Fiserv Inc'
+ 'FLIR Systems' 'Fluor Corp.' 'Flowserve Corporation' 'FMC Corporation'
+ 'Federal Realty Investment Trust' 'First Solar Inc'
+ 'Frontier Communications' 'General Dynamics'
+ 'General Growth Properties Inc.' 'Gilead Sciences' 'Corning Inc.'
+ 'General Motors' 'Genuine Parts' 'Garmin Ltd.' 'Goodyear Tire & Rubber'
+ 'Grainger (W.W.) Inc.' 'Halliburton Co.' 'Hasbro Inc.'
+ 'Huntington Bancshares' 'HCA Holdings' 'Welltower Inc.' 'HCP Inc.'
+ 'Hess Corporation' 'Hartford Financial Svc.Gp.' 'Harley-Davidson'
+ "Honeywell Int'l Inc." 'Hewlett Packard Enterprise' 'HP Inc.'
+ 'Hormel Foods Corp.' 'Henry Schein' 'Host Hotels & Resorts'
+ 'The Hershey Company' 'Humana Inc.' 'International Business Machines'
+ 'IDEXX Laboratories' 'Intl Flavors & Fragrances' 'International Paper'
+ 'Interpublic Group' 'Iron Mountain Incorporated'
+ 'Intuitive Surgical Inc.' 'Illinois Tool Works' 'Invesco Ltd.'
+ 'J. B. Hunt Transport Services' 'Jacobs Engineering Group'
+ 'Juniper Networks' 'JPMorgan Chase & Co.' 'Kimco Realty' 'Kimberly-Clark'
+ 'Kinder Morgan' 'Coca Cola Company' 'Kansas City Southern'
+ 'Leggett & Platt' 'Lennar Corp.' 'Laboratory Corp. of America Holding'
+ 'LKQ Corporation' 'L-3 Communications Holdings' 'Lilly (Eli) & Co.'
+ 'Lockheed Martin Corp.' 'Alliant Energy Corp' 'Leucadia National Corp.'
+ 'Southwest Airlines' 'Level 3 Communications' 'LyondellBasell'
+ 'Mastercard Inc.' 'Mid-America Apartments' 'Macerich' "Marriott Int'l."
+ 'Masco Corp.' 'Mattel Inc.' "McDonald's Corp." "Moody's Corp"
+ 'Mondelez International' 'MetLife Inc.' 'Mohawk Industries'
+ 'Mead Johnson' 'McCormick & Co.' 'Martin Marietta Materials'
+ 'Marsh & McLennan' '3M Company' 'Monster Beverage' 'Altria Group Inc'
+ 'The Mosaic Company' 'Marathon Petroleum' 'Merck & Co.'
+ 'Marathon Oil Corp.' 'M&T Bank Corp.' 'Mettler Toledo' 'Murphy Oil'
+ 'Mylan N.V.' 'Navient' 'Noble Energy Inc' 'NASDAQ OMX Group'
+ 'NextEra Energy' 'Newmont Mining Corp. (Hldg. Co.)' 'Netflix Inc.'
+ 'Newfield Exploration Co' 'Nielsen Holdings'
+ 'National Oilwell Varco Inc.' 'Norfolk Southern Corp.'
+ 'Northern Trust Corp.' 'Nucor Corp.' 'Newell Brands'
+ 'Realty Income Corporation' 'ONEOK' 'Omnicom Group' "O'Reilly Automotive"
+ 'Occidental Petroleum' "People's United Financial" 'Pitney-Bowes'
+ 'PACCAR Inc.' 'PG&E Corp.' 'Public Serv. Enterprise Inc.' 'PepsiCo Inc.'
+ 'Pfizer Inc.' 'Principal Financial Group' 'Procter & Gamble'
+ 'Progressive Corp.' 'Pulte Homes Inc.' 'Philip Morris International'
+ 'PNC Financial Services' 'Pentair Ltd.' 'Pinnacle West Capital'
+ 'PPG Industries' 'PPL Corp.' 'Prudential Financial' 'Phillips 66'
+ 'Quanta Services Inc.' 'Praxair Inc.' 'PayPal' 'Ryder System'
+ 'Royal Caribbean Cruises Ltd' 'Regeneron' 'Robert Half International'
+ 'Roper Industries' 'Range Resources Corp.' 'Republic Services Inc'
+ 'SCANA Corp' 'Charles Schwab Corporation' 'Spectra Energy Corp.'
+ 'Sealed Air' 'Sherwin-Williams' 'SL Green Realty'
+ 'Scripps Networks Interactive Inc.' 'Southern Co.'
+ 'Simon Property Group Inc' 'S&P Global, Inc.' 'Stericycle Inc'
+ 'Sempra Energy' 'SunTrust Banks' 'State Street Corp.'
+ 'Skyworks Solutions' 'Southwestern Energy' 'Synchrony Financial'
+ 'Stryker Corp.' 'AT&T Inc' 'Molson Coors Brewing Company'
+ 'Teradata Corp.' 'Tegna, Inc.' 'Torchmark Corp.'
+ 'Thermo Fisher Scientific' 'TripAdvisor' 'The Travelers Companies Inc.'
+ 'Tractor Supply Company' 'Tyson Foods' 'Tesoro Petroleum Co.'
+ 'Total System Services' 'Texas Instruments' 'Under Armour'
+ 'United Continental Holdings' 'UDR Inc' 'Universal Health Services, Inc.'
+ 'United Health Group Inc.' 'Unum Group' 'Union Pacific'
+ 'United Parcel Service' 'United Technologies' 'Varian Medical Systems'
+ 'Valero Energy' 'Vulcan Materials' 'Vornado Realty Trust'
+ 'Verisk Analytics' 'Verisign Inc.' 'Vertex Pharmaceuticals Inc'
+ 'Ventas Inc' 'Verizon Communications' 'Waters Corporation'
+ 'Wec Energy Group Inc' 'Wells Fargo' 'Whirlpool Corp.'
+ 'Waste Management Inc.' 'Williams Cos.' 'Western Union Co'
+ 'Weyerhaeuser Corp.' 'Wyndham Worldwide' 'Wynn Resorts Ltd'
+ 'Cimarex Energy' 'Xcel Energy Inc' 'XL Capital' 'Exxon Mobil Corp.'
+ 'Dentsply Sirona' 'Xerox Corp.' 'Xylem Inc.' 'Yahoo Inc.'
+ 'Yum! Brands Inc' 'Zimmer Biomet Holdings' 'Zions Bancorp' 'Zoetis']
+
+In cluster 5, the following companies are present:
+['Alliance Data Systems']
+
+In cluster 2, the following companies are present:
+['Apache Corporation' 'Chesapeake Energy']
+
+In cluster 1, the following companies are present:
+['Bank of America Corp' 'Intel Corp.']
+
+In cluster 3, the following companies are present:
+['Facebook']
+
+In cluster 4, the following companies are present:
+['Priceline.com Inc']
+
+df2.groupby(["HC_segments", "GICS Sector"])['Security'].count()
+HC_segments  GICS Sector                
+0            Consumer Discretionary         39
+             Consumer Staples               19
+             Energy                         28
+             Financials                     48
+             Health Care                    40
+             Industrials                    53
+             Information Technology         30
+             Materials                      20
+             Real Estate                    27
+             Telecommunications Services     5
+             Utilities                      24
+1            Financials                      1
+             Information Technology          1
+2            Energy                          2
+3            Information Technology          1
+4            Consumer Discretionary          1
+5            Information Technology          1
+Name: Security, dtype: int64
+This clustering does not look good as the clusters do not have enough variability.
+Let us try using Ward linkage as it has more distinct and separated clusters (as seen from it's dendrogram before). 8 appears to be the appropriate number of clusters from the dendrogram for Ward linkage.
+Creating Model
+
+HCmodel = AgglomerativeClustering(n_clusters=8, affinity="euclidean", linkage="ward")
+HCmodel.fit(subset_scaled_df)
+AgglomerativeClustering(n_clusters=8)
+subset_scaled_df["HC_Clusters"] = HCmodel.labels_
+df2["HC_Clusters"] = HCmodel.labels_
+Cluster Profiling
+
+cluster_profile = df2.groupby("HC_Clusters").mean()
+cluster_profile["count_in_each_segments"] = (
+    df2.groupby("HC_Clusters")["Security"].count().values
+)
+for cl in df2["HC_Clusters"].unique():
+    print("In cluster {}, the following companies are present:".format(cl))
+    print(df2[df2["HC_Clusters"] == cl]["Security"].unique())
+    print()
+In cluster 3, the following companies are present:
+['American Airlines Group' 'AbbVie' 'Abbott Laboratories'
+ 'Adobe Systems Inc' 'Analog Devices, Inc.' 'Archer-Daniels-Midland Co'
+ 'Ameren Corp' 'American Electric Power' 'AFLAC Inc'
+ 'American International Group, Inc.' 'Apartment Investment & Mgmt'
+ 'Assurant Inc' 'Arthur J. Gallagher & Co.' 'Akamai Technologies Inc'
+ 'Albemarle Corp' 'Alaska Air Group Inc' 'Allstate Corp'
+ 'Applied Materials Inc' 'AMETEK Inc' 'Affiliated Managers Group Inc'
+ 'Ameriprise Financial' 'American Tower Corp A' 'AutoNation Inc'
+ 'Anthem Inc.' 'Aon plc' 'Amphenol Corp' 'Arconic Inc'
+ 'Activision Blizzard' 'AvalonBay Communities, Inc.' 'Broadcom'
+ 'American Water Works Company Inc' 'American Express Co' 'Boeing Company'
+ 'Baxter International Inc.' 'BB&T Corporation' 'Bard (C.R.) Inc.'
+ 'BIOGEN IDEC Inc.' 'The Bank of New York Mellon Corp.' 'Ball Corp'
+ 'Bristol-Myers Squibb' 'Boston Scientific' 'BorgWarner'
+ 'Boston Properties' 'Caterpillar Inc.' 'Chubb Limited' 'CBRE Group'
+ 'Crown Castle International Corp.' 'Carnival Corp.' 'Celgene Corp.'
+ 'CF Industries Holdings Inc' 'Citizens Financial Group' 'Church & Dwight'
+ 'C. H. Robinson Worldwide' 'CIGNA Corp.' 'Cincinnati Financial'
+ 'Comerica Inc.' 'CME Group Inc.' 'Cummins Inc.' 'CMS Energy'
+ 'Centene Corporation' 'CenterPoint Energy' 'Capital One Financial'
+ 'The Cooper Companies' 'CSX Corp.' 'CenturyLink Inc'
+ 'Cognizant Technology Solutions' 'Citrix Systems' 'CVS Health'
+ 'Chevron Corp.' 'Dominion Resources' 'Delta Air Lines' 'Du Pont (E.I.)'
+ 'Deere & Co.' 'Discover Financial Services' 'Quest Diagnostics'
+ 'Danaher Corp.' 'The Walt Disney Company' 'Discovery Communications-A'
+ 'Discovery Communications-C' 'Delphi Automotive' 'Digital Realty Trust'
+ 'Dun & Bradstreet' 'Dover Corp.' 'Dr Pepper Snapple Group' 'Duke Energy'
+ 'DaVita Inc.' 'eBay Inc.' 'Ecolab Inc.' 'Consolidated Edison'
+ 'Equifax Inc.' "Edison Int'l" 'Eastman Chemical' 'Equity Residential'
+ 'EQT Corporation' 'Eversource Energy' 'Essex Property Trust, Inc.'
+ 'E*Trade' 'Eaton Corporation' 'Entergy Corp.' 'Edwards Lifesciences'
+ 'Exelon Corp.' "Expeditors Int'l" 'Expedia Inc.' 'Extra Space Storage'
+ 'Fastenal Co' 'Fortune Brands Home & Security' 'FirstEnergy Corp'
+ 'Fidelity National Information Services' 'Fiserv Inc' 'FLIR Systems'
+ 'Fluor Corp.' 'Flowserve Corporation' 'FMC Corporation'
+ 'Federal Realty Investment Trust' 'First Solar Inc' 'General Dynamics'
+ 'General Growth Properties Inc.' 'Gilead Sciences' 'Corning Inc.'
+ 'General Motors' 'Genuine Parts' 'Garmin Ltd.' 'Goodyear Tire & Rubber'
+ 'Grainger (W.W.) Inc.' 'Halliburton Co.' 'Hasbro Inc.'
+ 'Huntington Bancshares' 'HCA Holdings' 'Welltower Inc.' 'HCP Inc.'
+ 'Hartford Financial Svc.Gp.' 'Harley-Davidson' "Honeywell Int'l Inc."
+ 'Hewlett Packard Enterprise' 'HP Inc.' 'Hormel Foods Corp.'
+ 'Henry Schein' 'Host Hotels & Resorts' 'The Hershey Company'
+ 'Humana Inc.' 'International Business Machines' 'IDEXX Laboratories'
+ 'Intl Flavors & Fragrances' 'International Paper' 'Interpublic Group'
+ 'Iron Mountain Incorporated' 'Illinois Tool Works' 'Invesco Ltd.'
+ 'J. B. Hunt Transport Services' 'Jacobs Engineering Group'
+ 'Juniper Networks' 'Kimco Realty' 'Kansas City Southern'
+ 'Leggett & Platt' 'Lennar Corp.' 'Laboratory Corp. of America Holding'
+ 'LKQ Corporation' 'L-3 Communications Holdings' 'Lilly (Eli) & Co.'
+ 'Lockheed Martin Corp.' 'Alliant Energy Corp' 'Leucadia National Corp.'
+ 'Southwest Airlines' 'Level 3 Communications' 'LyondellBasell'
+ 'Mastercard Inc.' 'Mid-America Apartments' 'Macerich' "Marriott Int'l."
+ 'Masco Corp.' 'Mattel Inc.' "McDonald's Corp." "Moody's Corp"
+ 'Mondelez International' 'MetLife Inc.' 'Mohawk Industries'
+ 'Mead Johnson' 'McCormick & Co.' 'Martin Marietta Materials'
+ 'Marsh & McLennan' '3M Company' 'Altria Group Inc' 'The Mosaic Company'
+ 'Marathon Petroleum' 'Merck & Co.' 'M&T Bank Corp.' 'Mettler Toledo'
+ 'Mylan N.V.' 'Navient' 'NASDAQ OMX Group' 'NextEra Energy'
+ 'Newmont Mining Corp. (Hldg. Co.)' 'Nielsen Holdings'
+ 'Norfolk Southern Corp.' 'Northern Trust Corp.' 'Nucor Corp.'
+ 'Newell Brands' 'Realty Income Corporation' 'Omnicom Group'
+ "O'Reilly Automotive" "People's United Financial" 'Pitney-Bowes'
+ 'PACCAR Inc.' 'PG&E Corp.' 'Public Serv. Enterprise Inc.' 'PepsiCo Inc.'
+ 'Principal Financial Group' 'Procter & Gamble' 'Progressive Corp.'
+ 'Pulte Homes Inc.' 'Philip Morris International' 'PNC Financial Services'
+ 'Pentair Ltd.' 'Pinnacle West Capital' 'PPG Industries' 'PPL Corp.'
+ 'Prudential Financial' 'Phillips 66' 'Quanta Services Inc.'
+ 'Praxair Inc.' 'PayPal' 'Ryder System' 'Royal Caribbean Cruises Ltd'
+ 'Robert Half International' 'Roper Industries' 'Republic Services Inc'
+ 'SCANA Corp' 'Charles Schwab Corporation' 'Sealed Air' 'Sherwin-Williams'
+ 'SL Green Realty' 'Scripps Networks Interactive Inc.' 'Southern Co.'
+ 'Simon Property Group Inc' 'Stericycle Inc' 'Sempra Energy'
+ 'SunTrust Banks' 'State Street Corp.' 'Skyworks Solutions'
+ 'Synchrony Financial' 'Stryker Corp.' 'Molson Coors Brewing Company'
+ 'Tegna, Inc.' 'Torchmark Corp.' 'Thermo Fisher Scientific' 'TripAdvisor'
+ 'The Travelers Companies Inc.' 'Tractor Supply Company' 'Tyson Foods'
+ 'Tesoro Petroleum Co.' 'Total System Services' 'Texas Instruments'
+ 'Under Armour' 'United Continental Holdings' 'UDR Inc'
+ 'Universal Health Services, Inc.' 'United Health Group Inc.' 'Unum Group'
+ 'Union Pacific' 'United Parcel Service' 'United Technologies'
+ 'Varian Medical Systems' 'Valero Energy' 'Vulcan Materials'
+ 'Vornado Realty Trust' 'Verisk Analytics' 'Verisign Inc.'
+ 'Vertex Pharmaceuticals Inc' 'Ventas Inc' 'Wec Energy Group Inc'
+ 'Whirlpool Corp.' 'Waste Management Inc.' 'Western Union Co'
+ 'Weyerhaeuser Corp.' 'Wyndham Worldwide' 'Wynn Resorts Ltd'
+ 'Xcel Energy Inc' 'XL Capital' 'Dentsply Sirona' 'Xerox Corp.'
+ 'Xylem Inc.' 'Yum! Brands Inc' 'Zimmer Biomet Holdings' 'Zions Bancorp'
+ 'Zoetis']
+
+In cluster 1, the following companies are present:
+['Alliance Data Systems' 'Chipotle Mexican Grill' 'Equinix'
+ 'Intuitive Surgical Inc.' 'Priceline.com Inc' 'Regeneron']
+
+In cluster 0, the following companies are present:
+['Allegion' 'Apache Corporation' 'Chesapeake Energy'
+ 'Charter Communications' 'Colgate-Palmolive' 'Kimberly-Clark'
+ 'S&P Global, Inc.']
+
+In cluster 5, the following companies are present:
+['Alexion Pharmaceuticals' 'Amazon.com Inc' 'Netflix Inc.']
+
+In cluster 7, the following companies are present:
+['Amgen Inc' 'Facebook' 'Frontier Communications' 'Monster Beverage'
+ 'Waters Corporation' 'Yahoo Inc.']
+
+In cluster 4, the following companies are present:
+['Anadarko Petroleum Corp' 'Baker Hughes Inc' 'Cabot Oil & Gas'
+ 'Concho Resources' 'Devon Energy Corp.' 'EOG Resources'
+ 'Freeport-McMoran Cp & Gld' 'Hess Corporation' 'Kinder Morgan'
+ 'Marathon Oil Corp.' 'Murphy Oil' 'Noble Energy Inc'
+ 'Newfield Exploration Co' 'National Oilwell Varco Inc.' 'ONEOK'
+ 'Occidental Petroleum' 'Range Resources Corp.' 'Spectra Energy Corp.'
+ 'Southwestern Energy' 'Teradata Corp.' 'Williams Cos.' 'Cimarex Energy']
+
+In cluster 6, the following companies are present:
+['Bank of America Corp' 'Intel Corp.']
+
+In cluster 2, the following companies are present:
+['Citigroup Inc.' 'Ford Motor' 'JPMorgan Chase & Co.' 'Coca Cola Company'
+ 'Pfizer Inc.' 'AT&T Inc' 'Verizon Communications' 'Wells Fargo'
+ 'Exxon Mobil Corp.']
+
+Clusters have some variability.
+df2.groupby(["HC_Clusters", "GICS Sector"])['Security'].count()
+HC_Clusters  GICS Sector                
+0            Consumer Discretionary          1
+             Consumer Staples                2
+             Energy                          2
+             Financials                      1
+             Industrials                     1
+1            Consumer Discretionary          2
+             Health Care                     2
+             Information Technology          1
+             Real Estate                     1
+2            Consumer Discretionary          1
+             Consumer Staples                1
+             Energy                          1
+             Financials                      3
+             Health Care                     1
+             Telecommunications Services     2
+3            Consumer Discretionary         35
+             Consumer Staples               15
+             Energy                          7
+             Financials                     44
+             Health Care                    34
+             Industrials                    52
+             Information Technology         27
+             Materials                      19
+             Real Estate                    26
+             Telecommunications Services     2
+             Utilities                      24
+4            Energy                         20
+             Information Technology          1
+             Materials                       1
+5            Consumer Discretionary          1
+             Health Care                     1
+             Information Technology          1
+6            Financials                      1
+             Information Technology          1
+7            Consumer Staples                1
+             Health Care                     2
+             Information Technology          2
+             Telecommunications Services     1
+Name: Security, dtype: int64
+plt.figure(figsize=(20, 20))
+plt.suptitle("Boxplot of numerical variables for each cluster")
+
+for i, variable in enumerate(num_col):
+    plt.subplot(3, 4, i + 1)
+    sns.boxplot(data=df2, x="HC_Clusters", y=variable)
+
+plt.tight_layout(pad=2.0)
+
+We will look at clusters 0,2,3,4 since other clusters have less number of companies in them.
+
+Observations
+
+Cluster 0
+
+The companies in this cluster have low volatility and high return on equity.
+Moderate earnigns per share and moderate cash flow and net income.
+Cluster 2
+
+The companies in this clusters have low volatility and maximum net income compared to all clusters.
+Most of the shares are with this stake holders for the companies in this cluster showing low price change.
+Cluster 3
+
+There are maximum companies in this cluster.
+It is moderately volatile, having high cash flow and high net income, proving companies are making money in this cluster.
+Cluster 4
+
+The companies in this cluster have high volatility hence higher price movement.
+K-means vs Hierarchical Clustering
+You compare several things, like:
+
+Which clustering technique took less time for execution?
+Which clustering technique gave you more distinct clusters, or are they the same?
+How many observations are there in the similar clusters of both algorithms?
+How many clusters are obtained as the appropriate number of clusters from both algorithms?
+You can also mention any differences or similarities you obtained in the cluster profiles from both the clustering techniques.
+
+Both the clustering techniques took similar time to execute. Although in K-means I used pre-qualified cluster number and in Heirarchical technique I had to try multiple cluster linkage to have more distinct and separate clusters.
+Hierarchical technique gave me more distinct and separate clusters.
+For k-means clustering 3 clusters showed the best results and for hierarchical clusters 8 clusters showed the best results using ward linkage.
+Actionable Insights and Recommendations
+-
+
+Cluster 2 companies are safe to invest with high net income and low volatility.
