@@ -1,1 +1,2 @@
 # Trade-Ahead
+Trade&Ahead is a financial consultancy firm who provide their customers with personalized investment strategies. As a Data Scientist I played with data comprising stock price and some financial indicators for a few companies listed under the New York Stock Exchange. Analyzing the data, grouping the stocks based on the attributes provided, and sharing insights about the characteristics of each group was done in this project. 
